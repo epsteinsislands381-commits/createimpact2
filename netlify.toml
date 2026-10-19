@@ -1,1 +1,1 @@
-﻿[build]\n  command = ""\n  publish = "."
+﻿[build]\n  command = ""\n  publish = "admin"
