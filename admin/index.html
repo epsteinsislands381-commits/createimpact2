@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreateImpact Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
+<style>
+/* Admin: a calm two-pane editor. Fields on the left, the real site live on the right. */
+:root{
+  --paper:#FCFBF8;--wash:#F1EEE8;--line:#E4DFD6;--ink:#151413;--ink-2:#55514A;--ink-3:#7A756C;
+  --spark:#FF4F1B;--ok:#1F7A57;--err:#B3261E;--field:#FFFFFF;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#121110;--wash:#1B1A18;--line:#2C2A27;--ink:#F4F1EB;--ink-2:#BDB7AD;--ink-3:#8F897F;
+  --spark:#FF5A26;--ok:#3DBB87;--err:#FF7A70;--field:#1B1A18;color-scheme:dark;
+}}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"DM Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2.5px solid var(--spark);outline-offset:2px;border-radius:6px}
+h1,h2,h3{font-family:"Bricolage Grotesque","DM Sans",sans-serif;letter-spacing:-.02em;margin:0}
+.btn{height:42px;padding:0 16px;border-radius:999px;border:0;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:var(--wash);color:var(--ink)}
+.btn:hover{background:var(--line)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.primary:hover{background:var(--spark);color:#151413}
+.btn.ghost{background:transparent;box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.mark{width:18px;height:23px;flex:none}
+
+/* login */
+.login{min-height:100%;display:grid;place-items:center;padding:24px max(20px,env(safe-area-inset-left,0px))}
+.login form{width:min(380px,100%);display:flex;flex-direction:column;gap:14px}
+.login h1{font-size:34px;line-height:1.05;margin:18px 0 4px}
+.input{height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--field);padding:0 14px;width:100%;outline:none}
+.input:focus{border-color:var(--ink)}
+.msg{min-height:22px;font-size:14px}
+.msg.err{color:var(--err)}
+.msg.ok{color:var(--ok)}
+
+/* app */
+.app{height:100%;display:grid;grid-template-rows:auto 1fr}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px max(20px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line)}
+.top .who{display:flex;align-items:center;gap:10px;font-weight:800;font-family:"Bricolage Grotesque",sans-serif;font-size:19px;letter-spacing:-.03em}
+.top .who small{font-family:"DM Sans",sans-serif;font-weight:500;font-size:13px;color:var(--ink-3);letter-spacing:0}
+.state{font-size:13px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.state.dirty i{background:var(--spark)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.main{display:grid;grid-template-columns:minmax(340px,440px) minmax(0,1fr);min-height:0}
+.editor{overflow:auto;border-right:1px solid var(--line);padding:8px max(20px,env(safe-area-inset-left,0px)) 80px}
+.preview{display:flex;flex-direction:column;min-height:0;background:var(--wash)}
+.pbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--paper)}
+.seg button{height:34px;padding:0 14px;border-radius:999px;border:0;background:transparent;font-weight:700;font-size:13px;color:var(--ink-3)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.frame{flex:1;min-height:0;display:flex;justify-content:center;padding:0 16px 16px}
+.frame iframe{width:100%;height:100%;border:0;border-radius:14px;background:#fff;box-shadow:0 20px 50px -30px rgba(0,0,0,.4);transition:width .3s}
+.frame.phone iframe{width:390px;max-width:100%}
+@media (max-width:900px){
+  .main{grid-template-columns:1fr}
+  .editor{border-right:0}
+  .preview{display:none}
+  .preview.open{display:flex;position:fixed;inset:0;z-index:20}
+  .mobile-preview{display:inline-flex!important}
+}
+.mobile-preview{display:none!important}
+
+/* sections */
+details.group{border-bottom:1px solid var(--line)}
+details.group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 0;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;letter-spacing:-.02em}
+details.group>summary::-webkit-details-marker{display:none}
+details.group>summary::after{content:"+";font-family:"DM Sans",sans-serif;font-weight:500;font-size:22px;color:var(--ink-3)}
+details.group[open]>summary::after{content:"−"}
+.fields{display:flex;flex-direction:column;gap:16px;padding:0 0 22px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:700;font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.field label .chg{color:var(--spark);font-weight:700}
+.field textarea{min-height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--field);padding:10px 12px;resize:vertical;outline:none;line-height:1.45}
+.field textarea:focus,.field input:focus{border-color:var(--ink)}
+.field input{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--field);padding:0 12px;outline:none;width:100%}
+.field .hint{font-size:12px;color:var(--ink-3)}
+.imgrow{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center}
+.imgrow .thumb{width:64px;height:64px;border-radius:10px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line)}
+.revert{border:0;background:none;color:var(--ink-3);font-size:12px;font-weight:700;padding:0;text-decoration:underline}
+
+/* ledger editor */
+.month{border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.month .mh{display:flex;gap:8px;align-items:center}
+.lrow{display:grid;grid-template-columns:92px minmax(0,1fr);gap:6px;padding-top:10px;border-top:1px solid var(--line)}
+.lrow .cause{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--ink-3)}
+.lrow input{height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--field);padding:0 10px;outline:none;min-width:0}
+.lrow .proof{grid-column:1 / -1}
+
+/* dialog */
+dialog{border:0;border-radius:22px;padding:0;width:min(560px,94vw);background:var(--paper);color:var(--ink);box-shadow:0 40px 80px -30px rgba(0,0,0,.5)}
+dialog::backdrop{background:rgba(10,10,12,.5)}
+.dlg{padding:24px;display:flex;flex-direction:column;gap:16px}
+.dlg h2{font-size:26px}
+.opt{border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:13px;color:var(--ink-2)}
+code{font-size:12.5px;background:var(--wash);padding:1px 6px;border-radius:6px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:999px;font-weight:600;font-size:14px;z-index:50;max-width:calc(100vw - 32px)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="mk"><path fill="#FF4F1B" d="M71.5 0C74 3 75.5 7 75.5 13L75.5 24C75.5 36 66 43 55 48.5C43 54 34 62 34 73C34 85 41 94 53 95C64 96 74 87.5 86 85.5C94 84 100 88 100 95C100 104 93 114 80 122C70 127 60 127.5 50 127.5C22 127.5 0 106 0 76C0 58 8 42 22 32C36 22 58 12 71.5 0Z"/><circle fill="#FF4F1B" cx="86.5" cy="58.5" r="10"/></g></defs></svg>
+
+<!-- LOGIN -->
+<main class="login" id="loginView">
+  <form id="loginForm" autocomplete="off">
+    <svg class="mark" viewBox="0 0 100 128" style="width:30px;height:38px" aria-hidden="true"><use href="#mk"/></svg>
+    <h1>CreateImpact admin</h1>
+    <p style="margin:0;color:var(--ink-2)">Enter the admin password to edit the website.</p>
+    <label for="pw" style="font-weight:700;font-size:14px">Password</label>
+    <input class="input" id="pw" type="password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit" style="height:48px;justify-content:center">Log in</button>
+    <p class="msg" id="loginMsg" role="alert"></p>
+  </form>
+</main>
+
+<!-- EDITOR -->
+<div class="app" id="appView" hidden>
+  <header class="top">
+    <div class="who"><svg class="mark" viewBox="0 0 100 128" aria-hidden="true"><use href="#mk"/></svg>createimpact <small>admin</small></div>
+    <span class="state" id="state"><i></i><span id="stateText">Loading the site…</span></span>
+    <div class="actions">
+      <button class="btn ghost mobile-preview" id="openPreview">Preview</button>
+      <button class="btn ghost" id="importBtn">Import</button>
+      <button class="btn ghost" id="discardBtn">Discard changes</button>
+      <button class="btn primary" id="publishBtn">Publish</button>
+      <button class="btn ghost" id="logoutBtn">Log out</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </header>
+  <div class="main">
+    <section class="editor" id="editor" aria-label="Website content"></section>
+    <section class="preview" id="preview" aria-label="Live preview">
+      <div class="pbar">
+        <div class="seg" role="group" aria-label="Preview size"><button id="pvDesk" aria-pressed="true">Desktop</button><button id="pvPhone" aria-pressed="false">Phone</button></div>
+        <span class="small">Live preview. Visitors see changes only after you publish.</span>
+        <button class="btn ghost mobile-preview" id="closePreview">Close</button>
+      </div>
+      <div class="frame" id="frameWrap"><iframe id="site" title="Website preview" src="../index.html"></iframe></div>
+    </section>
+  </div>
+</div>
+
+<!-- PUBLISH -->
+<dialog id="pubDlg" aria-labelledby="pubTitle">
+  <form method="dialog" class="dlg" id="pubForm">
+    <h2 id="pubTitle">Publish changes</h2>
+    <p class="small" style="margin:0">Your edits are saved as <code>content.json</code>. The website reads that file every time it loads.</p>
+
+    <div class="opt">
+      <b>Option 1 · Upload the file</b>
+      <span class="small">Download <code>content.json</code> and upload it to the main folder of createimpact.in, next to <code>index.html</code>, replacing the old one.</span>
+      <button type="button" class="btn primary" id="dlBtn" style="align-self:flex-start">Download content.json</button>
+    </div>
+
+    <div class="opt">
+      <b>Option 2 · Publish in one click (site hosted from GitHub)</b>
+      <span class="small">If createimpact.in deploys from a GitHub repository (Netlify, Vercel, Cloudflare Pages or GitHub Pages), publishing commits <code>content.json</code> and the site updates in about a minute.</span>
+      <div class="grid2">
+        <div class="field"><label for="ghOwner">Owner</label><input id="ghOwner" placeholder="your-github-name"></div>
+        <div class="field"><label for="ghRepo">Repository</label><input id="ghRepo" placeholder="createimpact-site"></div>
+        <div class="field"><label for="ghBranch">Branch</label><input id="ghBranch" value="main"></div>
+        <div class="field"><label for="ghPath">File path</label><input id="ghPath" value="content.json"></div>
+      </div>
+      <div class="field"><label for="ghToken">Access token</label><input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…"><span class="hint">A fine-grained token with "Contents: read and write" on this repository only.</span></div>
+      <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ghRemember"> Remember these details on this computer</label>
+      <button type="button" class="btn primary" id="ghBtn" style="align-self:flex-start">Publish to GitHub</button>
+      <p class="msg" id="ghMsg" role="status"></p>
+    </div>
+    <button class="btn ghost" value="close" style="align-self:flex-end">Close</button>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(s){ return document.querySelector(s); };
+var HASH = '2dd917b381da5920bbae4e79fac04f1e8b319bf14f8c54485670d78f927ec195';
+var LS = { get:function(k){ try { return localStorage.getItem('ci.admin.' + k); } catch(e){ return null; } }, set:function(k, v){ try { localStorage.setItem('ci.admin.' + k, v); } catch(e){} }, del:function(k){ try { localStorage.removeItem('ci.admin.' + k); } catch(e){} } };
+var SS = { get:function(k){ try { return sessionStorage.getItem('ci.admin.' + k); } catch(e){ return null; } }, set:function(k, v){ try { sessionStorage.setItem('ci.admin.' + k, v); } catch(e){} }, del:function(k){ try { sessionStorage.removeItem('ci.admin.' + k); } catch(e){} } };
+var tt; function toast(t){ var el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(function(){ el.hidden = true; }, 3200); }
+
+/* ---------- login ---------- */
+function sha256(text){
+  if (window.crypto && crypto.subtle) return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function(b){ return Array.prototype.map.call(new Uint8Array(b), function(x){ return ('0' + x.toString(16)).slice(-2); }).join(''); });
+  return Promise.reject(new Error('no-crypto'));
+}
+function enter(){ $('#loginView').hidden = true; $('#appView').hidden = false; boot(); }
+$('#loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  var pw = $('#pw').value;
+  sha256(pw).then(function(h){
+    if (h === HASH) { SS.set('ok', '1'); enter(); }
+    else { $('#loginMsg').className = 'msg err'; $('#loginMsg').textContent = 'That password is not correct. Check caps lock and try again.'; $('#pw').select(); }
+  }).catch(function(){ $('#loginMsg').className = 'msg err'; $('#loginMsg').textContent = 'Open the admin over https (createimpact.in/admin) to log in.'; });
+});
+$('#logoutBtn').addEventListener('click', function(){ SS.del('ok'); location.reload(); });
+if (SS.get('ok') === '1') enter(); else $('#pw').focus();
+
+/* ---------- schema ---------- */
+var GROUPS = [
+  ['Hero', [['hero.title','Headline'],['hero.lead','Intro sentence',3],['hero.cta1','Main button'],['hero.cta2','Second button'],['hero.statusLabel','Status label'],['hero.statusTitle','Status text'],['hero.statusTag','Status hashtag'],['hero.eduTag','Education photo caption'],['hero.healthTag','Health circle text'],['hero.envTag','Environment photo caption'],['hero.hungerTag','Hunger photo caption'],['hero.caption','Small note under the photos']]],
+  ['What is CreateImpact', [['about.title','Statement',3],['about.p1','Paragraph 1',5],['about.p2','Paragraph 2',5]]],
+  ['The problem', [['problem.title','Headline'],['problem.lead','Intro',3],['problem.trap1Title','Problem 1 title'],['problem.trap1Body','Problem 1 text',4],['problem.trap2Title','Problem 2 title'],['problem.trap2Body','Problem 2 text',4],['problem.trap3Title','Problem 3 title'],['problem.trap3Body','Problem 3 text',4]]],
+  ['Section headlines', [['value.title','Who it\'s for'],['how.title','How it works'],['trust.title','Trust'],['trust.lead','Trust intro',4],['model.title','Business model'],['app.title','App showcase'],['app.lead','App intro',3]]],
+  ['Launch and contact', [['launch.title','Launch headline'],['launch.date','Launch date and time (IST)','datetime'],['launch.formLabel','Signup label'],['contact.email','Email that receives sign-ups','email'],['footer.line','Footer line']]],
+  ['Photos', [['img.heroEducation','Hero: education','img'],['img.heroEnvironment','Hero: environment','img'],['img.heroHunger','Hero: hunger','img'],['img.valueYou','For you','img'],['img.valueNgo','For NGOs','img'],['img.valueBrands','For brands','img'],['img.trustLarge','Trust: large photo','img'],['img.trustSmall','Trust: small photo','img']]]
+];
+var CAUSES = ['Education','Health','Environment','Hunger','Women & livelihoods'];
+
+var published = null, draft = null, frame = $('#site'), ready = false;
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function isDirty(){ return published && JSON.stringify(draft) !== JSON.stringify(published); }
+function setState(){
+  var d = isDirty();
+  $('#state').classList.toggle('dirty', d);
+  $('#stateText').textContent = !ready ? 'Loading the site…' : d ? 'Unpublished changes, saved on this computer' : 'Matches the live site';
+}
+var pt;
+function changed(){
+  LS.set('draft', JSON.stringify(draft)); setState();
+  clearTimeout(pt); pt = setTimeout(function(){ try { frame.contentWindow.postMessage({ type:'ci-preview', content:draft }, '*'); } catch(e){} }, 120);
+}
+
+/* ---------- render editor ---------- */
+function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function render(){
+  var html = '';
+  GROUPS.forEach(function(g, gi){
+    html += '<details class="group"' + (gi === 0 ? ' open' : '') + '><summary>' + g[0] + '</summary><div class="fields">';
+    g[1].forEach(function(f){
+      var k = f[0], label = f[1], kind = f[2], v = draft[k], id = 'f_' + k.replace(/\W/g,'_');
+      var chg = published && draft[k] !== published[k] ? ' <span class="chg">edited</span>' : '';
+      html += '<div class="field"><label for="' + id + '"><span>' + label + chg + '</span>' + (published && draft[k] !== published[k] ? '<button type="button" class="revert" data-revert="' + k + '">Undo</button>' : '') + '</label>';
+      if (kind === 'img') html += '<div class="imgrow"><span class="thumb" style="background-image:url(&quot;' + esc(v) + '&quot;)"></span><input id="' + id + '" data-k="' + k + '" value="' + esc(v) + '" placeholder="https://…"></div><span class="hint">Paste an image link (https). Use a photo at least 1200px wide.</span>';
+      else if (kind === 'datetime') html += '<input id="' + id + '" data-k="' + k + '" type="datetime-local" value="' + esc(String(v || '').slice(0, 16)) + '"><span class="hint">The countdown counts to this moment, India time.</span>';
+      else if (kind === 'email') html += '<input id="' + id + '" data-k="' + k + '" type="email" value="' + esc(v) + '"><span class="hint">The "Join the launch" button opens an email to this address.</span>';
+      else html += '<textarea id="' + id + '" data-k="' + k + '" rows="' + (typeof kind === 'number' ? kind : 1) + '">' + esc(v) + '</textarea>';
+      html += '</div>';
+    });
+    html += '</div></details>';
+  });
+  // ledger
+  html += '<details class="group"><summary>Public ledger</summary><div class="fields" id="ledgerEd">';
+  Object.keys(draft.ledger || {}).forEach(function(m){
+    html += '<div class="month"><div class="mh"><input class="input" style="height:40px" data-month="' + esc(m) + '" value="' + esc(m) + '" aria-label="Month name"><button type="button" class="btn ghost" data-delmonth="' + esc(m) + '">Remove</button></div>';
+    (draft.ledger[m] || []).forEach(function(r, i){
+      html += '<div class="lrow"><span class="cause">' + (CAUSES[i] || 'Line ' + (i + 1)) + '</span><input aria-label="' + (CAUSES[i] || '') + ' amount in rupees" inputmode="numeric" data-lm="' + esc(m) + '" data-li="' + i + '" data-lf="0" value="' + esc(r[0]) + '"><input aria-label="' + (CAUSES[i] || '') + ' what it did" data-lm="' + esc(m) + '" data-li="' + i + '" data-lf="1" value="' + esc(r[1]) + '"><input class="proof" aria-label="' + (CAUSES[i] || '') + ' proof" data-lm="' + esc(m) + '" data-li="' + i + '" data-lf="2" value="' + esc(r[2]) + '" placeholder="Proof, e.g. Invoice, photos"></div>';
+    });
+    html += '</div>';
+  });
+  html += '<button type="button" class="btn ghost" id="addMonth" style="align-self:flex-start">Add a month</button><span class="hint" style="font-size:12px;color:var(--ink-3)">The last month in the list opens first on the site.</span></div></details>';
+  $('#editor').innerHTML = html;
+}
+var open = {};
+$('#editor').addEventListener('toggle', function(e){ var s = e.target.querySelector('summary'); if (s) open[s.textContent] = e.target.open; }, true);
+function rerender(){ var y = $('#editor').scrollTop; render(); Array.prototype.forEach.call(document.querySelectorAll('details.group'), function(d){ var s = d.querySelector('summary').textContent; if (s in open) d.open = open[s]; }); $('#editor').scrollTop = y; }
+
+$('#editor').addEventListener('input', function(e){
+  var t = e.target;
+  if (t.dataset.k) {
+    draft[t.dataset.k] = t.value;
+    if (t.closest('.imgrow')) t.parentNode.querySelector('.thumb').style.backgroundImage = 'url("' + t.value.replace(/"/g, '') + '")';
+    var lab = t.closest('.field').querySelector('label span');
+    if (lab) lab.innerHTML = lab.textContent.replace(/edited$/, '').trim() + (published && draft[t.dataset.k] !== published[t.dataset.k] ? ' <span class="chg">edited</span>' : '');
+    changed();
+  } else if (t.dataset.lm) {
+    var row = draft.ledger[t.dataset.lm][+t.dataset.li], f = +t.dataset.lf;
+    row[f] = f === 0 ? (+String(t.value).replace(/[^0-9]/g, '') || 0) : t.value;
+    changed();
+  }
+});
+$('#editor').addEventListener('change', function(e){
+  var t = e.target;
+  if (t.dataset.month) {
+    var oldM = t.dataset.month, newM = t.value.trim();
+    if (!newM || newM === oldM) { t.value = oldM; return; }
+    if (draft.ledger[newM]) { toast('A month called "' + newM + '" already exists.'); t.value = oldM; return; }
+    var nl = {}; Object.keys(draft.ledger).forEach(function(m){ nl[m === oldM ? newM : m] = draft.ledger[m]; }); draft.ledger = nl; changed(); rerender();
+  }
+});
+$('#editor').addEventListener('click', function(e){
+  var r = e.target.closest('[data-revert]');
+  if (r) { var k = r.dataset.revert; draft[k] = published[k]; changed(); rerender(); return; }
+  var d = e.target.closest('[data-delmonth]');
+  if (d) { if (Object.keys(draft.ledger).length < 2) { toast('Keep at least one month in the ledger.'); return; } delete draft.ledger[d.dataset.delmonth]; changed(); rerender(); return; }
+  if (e.target.id === 'addMonth') {
+    var ks = Object.keys(draft.ledger), last = draft.ledger[ks[ks.length - 1]] || [];
+    var name = 'New month ' + (ks.length + 1);
+    draft.ledger[name] = last.map(function(r){ return [0, r[1], r[2]]; }); changed(); rerender(); toast('Added "' + name + '". Rename it and fill in the amounts.');
+  }
+});
+
+/* ---------- talk to the site ---------- */
+addEventListener('message', function(e){
+  if (e.source !== frame.contentWindow) return;
+  var d = e.data || {};
+  if (d.type === 'ci-content' && !ready) {
+    published = clone(d.content); ready = true;
+    var saved = LS.get('draft'); var s = null; try { s = saved ? JSON.parse(saved) : null; } catch(err){}
+    draft = s ? Object.assign(clone(published), s) : clone(published);
+    render(); setState(); changed();
+    if (isDirty()) toast('Restored your unpublished changes.');
+  }
+});
+function boot(){
+  frame.addEventListener('load', function(){ setTimeout(function(){ if (!ready) try { frame.contentWindow.postMessage({ type:'ci-hello' }, '*'); } catch(e){} }, 400); });
+  setTimeout(function(){ if (!ready) { $('#stateText').textContent = 'Could not reach the site preview. Open the admin at createimpact.in/admin.'; } }, 8000);
+}
+
+/* ---------- preview controls ---------- */
+$('#pvDesk').addEventListener('click', function(){ $('#frameWrap').classList.remove('phone'); this.setAttribute('aria-pressed','true'); $('#pvPhone').setAttribute('aria-pressed','false'); });
+$('#pvPhone').addEventListener('click', function(){ $('#frameWrap').classList.add('phone'); this.setAttribute('aria-pressed','true'); $('#pvDesk').setAttribute('aria-pressed','false'); });
+$('#openPreview').addEventListener('click', function(){ $('#preview').classList.add('open'); });
+$('#closePreview').addEventListener('click', function(){ $('#preview').classList.remove('open'); });
+
+/* ---------- discard / import ---------- */
+$('#discardBtn').addEventListener('click', function(){
+  if (!isDirty()) { toast('There are no unpublished changes.'); return; }
+  var b = this;
+  if (b.dataset.armed) { draft = clone(published); LS.del('draft'); changed(); rerender(); delete b.dataset.armed; b.textContent = 'Discard changes'; toast('Changes discarded.'); return; }
+  b.dataset.armed = '1'; b.textContent = 'Click again to discard'; setTimeout(function(){ delete b.dataset.armed; b.textContent = 'Discard changes'; }, 3500);
+});
+$('#importBtn').addEventListener('click', function(){ $('#importFile').click(); });
+$('#importFile').addEventListener('change', function(){
+  var f = this.files[0]; if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){ try { var c = JSON.parse(rd.result); draft = Object.assign(clone(published), c); changed(); rerender(); toast('Imported ' + f.name + '. Review it, then publish.'); } catch(e){ toast('That file is not valid JSON. Choose a content.json exported from this admin.'); } };
+  rd.readAsText(f); this.value = '';
+});
+
+/* ---------- publish ---------- */
+var dlg = $('#pubDlg');
+function contentJSON(){ return JSON.stringify(draft, null, 2) + '\n'; }
+$('#publishBtn').addEventListener('click', function(){
+  ['ghOwner','ghRepo','ghBranch','ghPath'].forEach(function(id){ var v = LS.get(id); if (v) $('#' + id).value = v; });
+  var tok = LS.get('ghToken'); if (tok) { $('#ghToken').value = tok; $('#ghRemember').checked = true; }
+  $('#ghMsg').textContent = ''; $('#ghMsg').className = 'msg';
+  if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+});
+$('#dlBtn').addEventListener('click', function(){
+  var blob = new Blob([contentJSON()], { type:'application/json' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'content.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  toast('content.json downloaded. Upload it next to index.html to go live.');
+});
+function b64(str){ return btoa(unescape(encodeURIComponent(str))); }
+$('#ghBtn').addEventListener('click', function(){
+  var o = $('#ghOwner').value.trim(), r = $('#ghRepo').value.trim(), br = $('#ghBranch').value.trim() || 'main', p = ($('#ghPath').value.trim() || 'content.json').replace(/^\/+/, ''), tk = $('#ghToken').value.trim();
+  var m = $('#ghMsg');
+  if (!o || !r || !tk) { m.className = 'msg err'; m.textContent = 'Fill in owner, repository and access token.'; return; }
+  ['ghOwner','ghRepo','ghBranch','ghPath'].forEach(function(id){ LS.set(id, $('#' + id).value.trim()); });
+  if ($('#ghRemember').checked) LS.set('ghToken', tk); else LS.del('ghToken');
+  var api = 'https://api.github.com/repos/' + encodeURIComponent(o) + '/' + encodeURIComponent(r) + '/contents/' + p.split('/').map(encodeURIComponent).join('/');
+  var H = { 'Authorization':'Bearer ' + tk, 'Accept':'application/vnd.github+json' };
+  var btn = this; btn.disabled = true; m.className = 'msg'; m.textContent = 'Publishing…';
+  fetch(api + '?ref=' + encodeURIComponent(br), { headers:H })
+    .then(function(res){ if (res.status === 404) return null; if (!res.ok) throw new Error('read ' + res.status); return res.json(); })
+    .then(function(cur){
+      return fetch(api, { method:'PUT', headers:Object.assign({ 'Content-Type':'application/json' }, H), body:JSON.stringify({ message:'Update website content from admin', content:b64(contentJSON()), branch:br, sha:cur && cur.sha }) });
+    })
+    .then(function(res){ if (!res.ok) return res.json().then(function(j){ throw new Error(res.status + ' ' + (j.message || '')); }); return res.json(); })
+    .then(function(){ published = clone(draft); LS.del('draft'); setState(); rerender(); m.className = 'msg ok'; m.textContent = 'Published. The live site updates once your host finishes deploying, usually within a minute.'; })
+    .catch(function(err){ m.className = 'msg err'; m.textContent = /401|403/.test(err.message) ? 'GitHub refused the token. Check it has Contents: read and write on this repository.' : /404/.test(err.message) ? 'Repository or branch not found. Check the owner, repository and branch names.' : 'Publishing failed (' + err.message + '). Your changes are still saved here.'; })
+    .then(function(){ btn.disabled = false; });
+});
+addEventListener('beforeunload', function(e){ if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+})();
+</script>
+</body>
+</html>
